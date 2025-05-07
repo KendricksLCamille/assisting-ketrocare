@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Medical Notes Generator</title>
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    /* Custom CSS for better layout */
+    html, body {
+      height: 100%;
+      margin: 0;
+    }
+    .container-fluid {
+      padding: 20px;
+      height: 100%;
+    }
+    .row {
+      height: calc(100% - 40px); /* Adjust for container padding */
+    }
+    .form-section, .output-section {
+      display: flex;
+      flex-direction: column;
+      padding: 20px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      margin-bottom: 0; /* Remove margin-bottom from sections */
+      height: 100%; /* Make sections take full height */
+    }
+    .form-section {
+      background-color: #f8f9fa;
+    }
+    .output-section {
+      background-color: #e9ecef;
+    }
+    .scrollable-content {
+      flex-grow: 1;
+      overflow-y: auto; /* Enable vertical scrolling */
+      padding-right: 15px; /* Add padding for scrollbar */
+      margin-bottom: 15px; /* Space between scrollable area and buttons */
+    }
+    .output-textarea {
+      flex-grow: 1; /* Make textarea take available height */
+      width: 100%;
+      resize: none;
+      font-family: monospace;
+      border: 1px solid #ccc;
+      padding: 10px;
+      overflow-y: auto;
+      white-space: pre-wrap; /* Preserve line breaks */
+      margin-bottom: 15px; /* Space between textarea and button */
+    }
+    .add-additional-input {
+      margin-top: 10px;
+    }
+    .key-value-pair {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    .key-value-pair .form-control {
+      flex-grow: 1;
+    }
+    .key-value-pair .remove-btn {
+      flex-shrink: 0;
+    }
+    .additional-inputs-container {
+      margin-top: 15px;
+    }
+    .form-select-key {
+      width: 100%; /* Ensure dropdown takes full width of its column */
+    }
+    .form-buttons, .output-buttons {
+      flex-shrink: 0; /* Prevent buttons from shrinking */
+    }
+  </style>
+</head>
+<body>
+
+<div class="container-fluid">
+  <div class="row">
+    <div class="col-md-6 form-section">
+      <h2>Patient Notes Form</h2>
+      <form id="notesForm" class="d-flex flex-column h-100" style="max-height: 100%">
+        <div class="scrollable-content">
+          <div class="mb-3">
+            <label for="patientNotes" class="form-label">Notes about the Patient</label>
+            <textarea class="form-control" id="patientNotes" rows="3"></textarea>
+          </div>
+          <div class="mb-3">
+            <label for="admissionNotes" class="form-label">Admission</label>
+            <textarea class="form-control" id="admissionNotes" rows="3"></textarea>
+          </div>
+          <div class="mb-3">
+            <label for="medicationNotes" class="form-label">Medication</label>
+            <textarea class="form-control" id="medicationNotes" rows="3"></textarea>
+          </div>
+          <div class="mb-3">
+            <label for="followUpNotes" class="form-label">Follow Up</label>
+            <textarea class="form-control" id="followUpNotes" rows="3"></textarea>
+          </div>
+          <div class="mb-3">
+            <label for="educationNotes" class="form-label">Patient Education</label>
+            <textarea class="form-control" id="educationNotes" rows="3"></textarea>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Additional Information</label>
+            <div id="additionalInputsContainer" class="additional-inputs-container">
+              <!-- Additional inputs will be added here -->
+            </div>
+            <button type="button" class="btn btn-secondary btn-sm add-additional-input" onclick="addAdditionalInput('single')">Add Single Line Input</button>
+            <button type="button" class="btn btn-secondary btn-sm add-additional-input" onclick="addAdditionalInput('keyvalue')">Add Key-Value Input</button>
+          </div>
+        </div>
+        <div class="form-buttons">
+          <button type="submit" class="btn btn-primary">Generate Notes</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="col-md-6 output-section">
+      <h2>Generated Notes</h2>
+      <textarea class="output-textarea" id="outputNotes" readonly></textarea>
+      <div class="output-buttons">
+        <button class="btn btn-secondary w-100" onclick="copyOutput()">Copy Notes</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Bootstrap JS (optional, but good for some Bootstrap components) -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  const additionalInputsContainer = document.getElementById('additionalInputsContainer');
+  const outputNotesTextarea = document.getElementById('outputNotes');
+  const keyStorageKey = 'medicalNoteKeys';
+
+  // Load existing keys from local storage
+  let existingKeys = JSON.parse(localStorage.getItem(keyStorageKey)) || ['Blood Pressure', 'Heart Rate', 'Temperature', 'RR'];
+
+  // Keep track of how many dataLists have been generated so they all have unique keys.
+  let dataListCount = 0;
+  const keyOptionCommonKey = 'keyOptions';
+
+  function addAdditionalInput(type) {
+    const inputGroup = document.createElement('div');
+    inputGroup.classList.add('mb-2', 'additional-input-group');
+
+    if (type === 'single') {
+      inputGroup.innerHTML = `
+                <div class="input-group">
+                    <input type="text" class="form-control" placeholder="Enter additional note...">
+                    <button type="button" class="btn btn-outline-danger remove-btn" onclick="removeInput(this)">Remove</button>
+                </div>
+            `;
+      additionalInputsContainer.appendChild(inputGroup);
+    } else if (type === 'keyvalue') {
+      let id = `${keyOptionCommonKey}-` + dataListCount++;
+      inputGroup.innerHTML = `
+                <div class="key-value-pair">
+                    <input type="text" class="form-control form-select-key" placeholder="Key" list="${id}" oninput="filterKeyOptions(this)">
+                    <datalist id="${id}"></datalist>
+                    <input type="text" class="form-control" placeholder="Value">
+                    <button type="button" class="btn btn-outline-danger remove-btn" onclick="removeInput(this)">Remove</button>
+                </div>
+            `;
+      additionalInputsContainer.appendChild(inputGroup);
+      updateKeyDatalist(); // Populate datalist on creation
+    }
+
+    additionalInputsContainer.appendChild(inputGroup);
+  }
+
+  function removeInput(button) {
+    let inputGroup = button.closest('.additional-input-group');
+    let input = inputGroup.getElementsByTagName('input')[0];
+    existingKeys.remove(input.value)
+    inputGroup.remove();
+  }
+
+  function updateKeyDatalist() {
+    /**
+     * A NodeList of datalist elements whose ID contains the value of `keyOptionCommonKey`.
+     * @type {NodeList<HTMLDataListElement>}
+     */
+    const datalists = document.querySelectorAll(`datalist[id*="${keyOptionCommonKey}"]`);
+
+    // Using for...of loop for iterating over a NodeList
+    /**
+     * The current datalist element being processed in the loop.
+     * @type {HTMLDataListElement}
+     */
+    for (const datalist of datalists) {
+      debugger;
+      datalist.innerHTML = ''; // clears the contents of the datalist, which are <option> elements.
+      existingKeys.forEach(key => {
+        const option = document.createElement('option');
+        option.value = key.toString(); // sets the value attribute of the option.
+        datalist.appendChild(option); //  appends the option element to the datalist.
+      });
+    }
+  }
+
+  function filterKeyOptions(inputElement) {
+    const value = inputElement.value.toLowerCase();
+    const datalist = document.getElementById('keyOptions');
+    datalist.innerHTML = ''; // Clear existing options
+
+    // Filter existing keys based on the input value
+    const filteredKeys = existingKeys.filter(key => key.toLowerCase().includes(value));
+
+    // Add filtered keys to the datalist
+    filteredKeys.forEach(key => {
+      const option = document.createElement('option');
+      option.value = key;
+      datalist.appendChild(option);
+    });
+
+    // If the current input value doesn't match any existing key exactly (case-insensitive),
+    // consider adding it as a potential new key (this is handled on submit)
+  }
+
+  document.getElementById('notesForm').addEventListener('submit', function(event) {
+    event.preventDefault();
+
+    const patientNotes = document.getElementById('patientNotes').value.trim();
+    const admissionNotes = document.getElementById('admissionNotes').value.trim();
+    const medicationNotes = document.getElementById('medicationNotes').value.trim();
+    const followUpNotes = document.getElementById('followUpNotes').value.trim();
+    const educationNotes = document.getElementById('educationNotes').value.trim();
+
+    const nextLine = '\n\t';
+
+    let generatedNotes = '';
+
+    if (patientNotes) {
+      generatedNotes += `Notes about the Patient:${nextLine}` + patientNotes + '\n\n';
+    }
+    if (admissionNotes) {
+      generatedNotes += `Admission:${nextLine}` + admissionNotes + '\n\n';
+    }
+    if (medicationNotes) {
+      generatedNotes += `Medication:${nextLine}` + medicationNotes + '\n\n';
+    }
+    if (followUpNotes) {
+      generatedNotes += `Follow Up:${nextLine}` + followUpNotes + '\n\n';
+    }
+    if (educationNotes) {
+      generatedNotes += `Patient Education:${nextLine}` + educationNotes + '\n\n';
+    }
+
+    const additionalInputs = additionalInputsContainer.querySelectorAll('.additional-input-group');
+    if (additionalInputs.length > 0) {
+      generatedNotes += `Additional Information:${nextLine}`;
+      additionalInputs.forEach(inputGroup => {
+        const singleInput = inputGroup.querySelector('.input-group input[type="text"]');
+        const keyValuePair = inputGroup.querySelector('.key-value-pair');
+
+        if (singleInput) {
+          const value = singleInput.value.trim();
+          if (value) {
+            generatedNotes += `- ${value}\n\t\t`;
+          }
+        } else if (keyValuePair) {
+          let inputs = keyValuePair.querySelectorAll('input');
+          const keyInput = inputs[0];
+          const valueInput = inputs[1];
+          const key = keyInput.value.trim();
+          const value = valueInput.value.trim();
+
+          if (key || value) { // Only add if key or value is present
+            generatedNotes += `- ${key}: ${value}${nextLine}`;
+
+            // Add new key to storage if it's not already there (case-insensitive)
+            const keyExists = existingKeys.some(existingKey => existingKey.toLowerCase() === key.toLowerCase());
+            if (key && !keyExists) {
+              existingKeys.push(key);
+              localStorage.setItem(keyStorageKey, JSON.stringify(existingKeys));
+              updateKeyDatalist(); // Update datalist after adding
+            }
+          }
+        }
+      });
+      generatedNotes += '\n';
+    }
+
+    outputNotesTextarea.value = generatedNotes;
+  });
+
+  function copyOutput() {
+    outputNotesTextarea.select();
+    outputNotesTextarea.setSelectionRange(0, 99999); // For mobile devices
+
+    try {
+      navigator.clipboard.writeText(outputNotesTextarea.value).then(function() {
+        // Optional: Provide feedback to the user (e.g., a small tooltip or message)
+        console.log('Notes copied to clipboard');
+      }, function(err) {
+        console.error('Could not copy text: ', err);
+        // Fallback for older browsers or if clipboard API is not available
+        alert('Could not copy notes automatically. Please copy the text manually from the box.');
+      });
+    } catch (err) {
+      console.error('Could not copy text: ', err);
+      // Fallback for older browsers or if clipboard API is not available
+      alert('Could not copy notes automatically. Please copy the text manually from the box.');
+    }
+  }
+
+</script>
+
+</body>
+</html>

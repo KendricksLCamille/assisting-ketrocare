@@ -285,6 +285,10 @@
       generatedNotes += '\n';
     }
 
+    if(generatedNotes.length < 5){
+      alert('No information entered.');
+      return;
+    }
     outputNotesTextarea.value = generatedNotes;
   });
 

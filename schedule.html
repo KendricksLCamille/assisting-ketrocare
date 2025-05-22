@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Master Week Generator</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="m-4">
+
+<h1>Master Week Builder</h1>
+
+<button type="button" class="btn  btn-warning" onclick="location.reload()">Clear Page</button>
+
+<div class="form-group">
+  <label class="form-label" for="startTime">Start Time for schedule</label>
+  <input type="time" class="form-control" id="startTime" required value='09:00';>
+</div>
+
+<form id="form">
+  <div class="form-group">
+    <label for="serviceCode" class="form-label"></label>
+    <input type="text" id="serviceCode" placeholder="Enter Service Code" class="form-control"/>
+  </div>
+
+  <p>Enter Duration in Minutes</p>
+  <div class="row">
+    <div class="col">
+      <div class="form-group">
+        <label class="form-label" for="monday">Monday</label>
+        <input type="number" class="form-control" id="monday" min="0" step="1" value="0" required>
+      </div>
+    </div>
+    <div class="col">
+      <div class="form-group">
+        <label class="form-label" for="tuesday">Tuesday</label>
+        <input type="number" class="form-control" id="tuesday" min="0" step="1" value="0" required>
+      </div>
+    </div>
+    <div class="col">
+      <div class="form-group">
+        <label class="form-label" for="wednesday">Wednesday</label>
+        <input type="number" class="form-control" id="wednesday" min="0" step="1" value="0" required>
+      </div>
+    </div>
+    <div class="col">
+      <div class="form-group">
+        <label class="form-label" for="thursday">Thursday</label>
+        <input type="number" class="form-control" id="thursday" min="0" step="1" value="0" required>
+      </div>
+    </div>
+    <div class="col">
+      <div class="form-group">
+        <label class="form-label" for="friday">Friday</label>
+        <input type="number" class="form-control" id="friday" min="0" step="1" value="0" required>
+      </div>
+    </div>
+    <div class="col">
+      <div class="form-group">
+        <label class="form-label" for="saturday">Saturday</label>
+        <input type="number" class="form-control" id="saturday" min="0" step="1" value="0" required>
+      </div>
+    </div>
+    <div class="col">
+      <div class="form-group">
+        <label class="form-label" for="sunday">Sunday</label>
+        <input type="number" class="form-control" id="sunday" min="0" step="1" value="0" required>
+      </div>
+    </div>
+  </div>
+  <button type="submit" class="btn btn-primary mt-3">Add to Master Week</button>
+</form>
+
+<div class="table-responsive mt-4">
+  <table class="table table-striped table-bordered table-hover">
+    <thead>
+    <tr>
+      <th scope="col">Service Code</th>
+      <th scope="col">Monday</th>
+      <th scope="col">Tuesday</th>
+      <th scope="col">Wednesday</th>
+      <th scope="col">Thursday</th>
+      <th scope="col">Friday</th>
+      <th scope="col">Saturday</th>
+      <th scope="col">Sunday</th>
+      <th scope="col"></th>
+    </tr>
+    </thead>
+    <tbody id="masterWeekBody">
+    <!-- Table body content will be dynamically populated by JavaScript -->
+    </tbody>
+  </table>
+</div>
+
+</body>
+<script>
+  const masterWeek = {};
+
+  // On submit from form store in master week object using the input service code as the key
+  document.getElementById('form').addEventListener('submit', (event) => {
+    event.preventDefault();
+    const serviceCode = document.getElementById('serviceCode').value;
+
+    // Loop through every input in the div[class='row'] and store in a single array as int and when unknown set to 0
+    const schedule = Array.from(document.querySelectorAll('div[class="row"] input')).map(input => parseInt(input.value) || 0);
+    console.assert(schedule.length === 7); // 7 days so 7 inputs
+    masterWeek[serviceCode] = schedule;
+
+    document.getElementById('serviceCode').value = '';
+    Array.from(document.querySelectorAll('div[class="row"] input')).forEach(input => input.value = 0);
+
+    updateMasterWeek();
+  });
+
+  function updateMasterWeek(){
+    const tbodyId = 'masterWeekBody';
+    const tbody = document.getElementById(tbodyId);
+    tbody.innerHTML = '';
+
+    const startTime = document.getElementById("startTime").value;
+
+    const startTimes = Array(7).fill(convertTimeStringToMinutesFromMidnight(startTime));
+
+    Object.entries(masterWeek).forEach(([serviceCode, schedule]) => {
+      const row = document.createElement('tr');
+      let output = [];
+
+      debugger;
+      for(let i = 0; i < schedule.length; i++){
+        let startTime = convertToMidnightTime(startTimes[i])
+        startTimes[i] += schedule[i];
+        let endTime = convertToMidnightTime(startTimes[i])
+
+        if(endTime.includes(startTime)){
+          output.push('');
+        }
+        else{
+          output.push(`${startTime} - ${endTime}`);
+        }
+      }
+
+      row.innerHTML = `
+        <td>${serviceCode}</td>
+        <td>${output[0]}</td>
+        <td>${output[1]}</td>
+        <td>${output[2]}</td>
+        <td>${output[3]}</td>
+        <td>${output[4]}</td>
+        <td>${output[5]}</td>
+        <td>${output[6]}</td>
+        <td>
+          <button onclick="removeService('${serviceCode}')" class="btn btn-danger">Remove</button>
+        </td>
+      `;
+      tbody.appendChild(row);
+    });
+
+
+  }
+
+  function removeService(serviceCode) {
+    delete masterWeek[serviceCode];
+    updateMasterWeek();
+  }
+
+  function convertTimeStringToMinutesFromMidnight(timeStr){
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    return hours * 60 + minutes;
+  }
+
+  function convertToMidnightTime(minutes){
+    const hours = Math.floor(minutes / 60);
+    const minutesRemaining = minutes % 60;
+    return `${hours.toString().padStart(2, '0')}:${minutesRemaining.toString().padStart(2, '0')}`;
+  }
+
+  // Update master week when start time is changed
+  document.getElementById('startTime').addEventListener('change', () => {
+    if(Object.keys(masterWeek).length > 0){
+      updateMasterWeek();
+    }
+  })
+
+</script>
+</html>
